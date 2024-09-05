@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-jose
+pydantic
+pandas
+python-multipart
+sqlalchemy
+mysql-connector-python
+pyjwt
+python-dotenv
