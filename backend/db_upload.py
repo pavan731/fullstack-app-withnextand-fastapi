@@ -7,7 +7,7 @@ import io
 app = FastAPI()
 
 # Database setup
-DATABASE_URL = "mysql+pymysql://root:Pavan123@localhost:3306/parts_analytics"
+DATABASE_URL = "mysql+pymysql://root:Pavan123@127.0.0.1:3306/parts_analytics"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 metadata = MetaData()

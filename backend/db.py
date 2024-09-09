@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 db_config = {
     "host": "127.0.0.1",  # Replace with your MySQL host
     "user": "root",  # Replace with your MySQL username
-    "password": "Admin123!",  # Replace with your MySQL password
+    "password": "Pavan123",  # Replace with your MySQL password
     "database": "parts_analytics",  # Replace with your MySQL database name
 }
 
