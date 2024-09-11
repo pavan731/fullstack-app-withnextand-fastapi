@@ -15,7 +15,7 @@ from pydantic import BaseModel
 import pandas as pd
 
 from backend.Parts_penetration import truck_vehicle_population, Segmentwise, utilization, Gross_sale, parts_penetration
-from backend.db import get_utilization, get_pvpm, get_retail, get_running_hrs
+from backend.db import get_utilization, get_pvpm, get_retail, get_running_hrs,get_filters
 from backend.db_upload import handle_upload
 import uvicorn
 
@@ -192,6 +192,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 class FilterModel(BaseModel):
     month: Optional[str] = None
     year: Optional[int] = None
+    part_code: Optional[str] = None
     other_filter: Optional[str] = None
 
 # Separate endpoints for each table
@@ -219,6 +220,13 @@ async def upload_retail(file: UploadFile = File(...)):
 async def upload_utilization(file: UploadFile = File(...)):
     return await handle_upload("utilization", file)
 
+@app.get("/filters")
+async def retrieve_filters():  
+
+    retail =await get_filters()
+    print(retail)
+    # return {"Month": util["Month Name"].unique(),"Year" :util["Year"].unique(), "Part_Code":retail["Product Code"].unique()}
+    return retail
 @app.get("/truck_vehicle_population")
 async def retrieve_tvp(month: Optional[str] = Query(None), year: Optional[int] = Query(None)):
     data = await get_utilization(month, year)
@@ -250,23 +258,27 @@ async def retrieve_utilization_per_month(month: Optional[str] = Query(None), yea
     return {"utilization_per_month": dataframes_json}
 
 @app.get("/gross_sale")
-async def retrieve_gross_sale(month: Optional[str] = Query(None), year: Optional[int] = Query(None)):
-    data = await get_retail(month, year)
+async def retrieve_gross_sale(month: Optional[str] = Query(None), year: Optional[int] = Query(None),part_code: Optional[str] = Query(None)):
+    data = await get_retail(month, year,part_code)
     dataframe = Gross_sale(data)
     dataframes_json = dataframe.to_dict(orient="records")
     return {"gross_sale": dataframes_json}
 
 @app.get("/pp")
-async def retrieve_pp(month: Optional[str] = Query(None), year: Optional[int] = Query(None)):
-    retail = await get_retail(month, year)
+async def retrieve_pp(month: Optional[str] = Query(None), year: Optional[int] = Query(None),part_code: Optional[str] = Query(None)):
+    retail = await get_retail(month, year,part_code)
     pvpm = await get_pvpm()
     data = await get_utilization(month, year)
     running = await get_running_hrs()
     
-    dataframe, pp = parts_penetration(retail, pvpm, data, running)
-    print(pp)
+    dataframe,potential_sale,sum_of_gross_sale, pp = parts_penetration(retail, pvpm, data, running)
     dataframes_json = dataframe.to_dict(orient="records")
-    return {"pp_table": dataframes_json, "pp_percentage": pp}
-
+    print(dataframes_json,potential_sale,sum_of_gross_sale, pp)
+    return {
+        "pp_table": dataframes_json, 
+        "sum_of_gross_sale": sum_of_gross_sale, 
+        "potential_sale": potential_sale, 
+        "pp_percentage": pp
+        }
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

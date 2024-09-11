@@ -2,13 +2,15 @@ import pandas as pd
 
 def truck_vehicle_population(data,pvpm):
     Vehicle_pop=data.pivot_table(index='AGE', columns='VDB APPLIcATION', aggfunc='size', fill_value=0)
-    Vehicle_pop.reindex(columns=pvpm.columns).fillna(0,inplace=True)
+    Vehicle_pop.fillna(0,inplace=True)
+    Vehicle_pop = Vehicle_pop.reindex(columns=pvpm.columns)
     Vehicle_pop=Vehicle_pop.astype(int)
     return Vehicle_pop
 
 def Segmentwise(Vehicle_pop,pvpm):
     Segmentwise_Potential=Vehicle_pop.mul(pvpm).fillna(0)
     Segmentwise_Potential=Segmentwise_Potential.div(10**6)
+    Segmentwise_Potential=Segmentwise_Potential.reindex(columns=pvpm.columns)
     return Segmentwise_Potential
 
 
@@ -29,7 +31,7 @@ def parts_penetration(retail,pvpm,data,running):
     Segmentwise_Potential=Segmentwise(Vehicle_pop,pvpm)
     gross_sale=Gross_sale(retail)
     Utilzation_per_month=utilization(data)
-    
+   
     c=data.groupby(['VDB APPLIcATION',"Month"])["Utilization %"].count().reset_index()
     c=pd.pivot_table(c,values="Utilization %",index='VDB APPLIcATION',columns="Month")
     c.fillna(0,inplace=True)
@@ -63,7 +65,7 @@ def parts_penetration(retail,pvpm,data,running):
     mul=multi_util_count.loc[ind]/c.loc[ind]
     df.loc[ind,'Utilisation%']=mul.values
     
-    
+   
     df['ACT_Pot_Utilisation/Day']=(df['Utilisation%']*24)/100
     df.loc['Mining OB/Mineral','Ideal_Potential']=Segmentwise_Potential[[i for i in Segmentwise_Potential.columns if "Mining" in i]].sum().sum()*len(Utilzation_per_month.columns)
     
@@ -80,6 +82,7 @@ def parts_penetration(retail,pvpm,data,running):
     
     df=df.reset_index()
     df=df.round(2)
-  
-    return df,(sum_gross/df['Actual pot calc'].sum())*100
+    df.fillna(0,inplace=True)
+   
+    return df,round(df['Actual pot calc'].sum(),2),round(sum_gross,2),(sum_gross/df['Actual pot calc'].sum())*100
 

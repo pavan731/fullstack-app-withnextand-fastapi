@@ -38,14 +38,17 @@ def filters(df, month, year):
 
 async def get_pvpm(token: str = Depends(oauth2_scheme)):
     pvpm = await get_db_connection("PVPM")
+    pvpm.drop(columns=['On Road -Long Haul','On Road'],inplace=True)
     pvpm.fillna(0, inplace=True)
-    pvpm = pvpm.applymap(lambda x: int(x.replace(',', '')) if isinstance(x, str) else x)
+    pvpm = pvpm.map(lambda x: int(x.replace(',', '')) if isinstance(x, str) else x)
     pvpm = pvpm.set_index("AGE")
     return pvpm
 
 async def get_utilization(month, year, token: str = Depends(oauth2_scheme)):
     chp = await get_db_connection("chassis_vbd_application")
     util = await get_db_connection("utilization")
+
+    chp = chp[(chp["VDB APPLIcATION"]!='On Road -Long Haul') & (chp["VDB APPLIcATION"]!='Utility') & (chp["VDB APPLIcATION"]!='On Road') & (chp["VDB APPLIcATION"]!='On-Road LH')]
     
     util["Monthq"] = pd.to_datetime(util["Monthq"], format="%b-%y").dt.strftime('%b-%Y')
     util[["Month Name", 'Year']] = util['Monthq'].str.split('-', expand=True)
@@ -58,10 +61,17 @@ async def get_utilization(month, year, token: str = Depends(oauth2_scheme)):
     util = pd.merge(site_cust, data, on=['Site Code'], how='right')
     util.dropna(subset=["Utilization %"], inplace=True)
     util["Utilization %"] = util["Utilization %"].apply(lambda x: int(x.replace("%", "")))
+    
     return util
 
-async def get_retail(month, year, token: str = Depends(oauth2_scheme)):
+async def get_retail(month, year,part_code=None, token: str = Depends(oauth2_scheme)):
     retail = await get_db_connection("retail", {"month": month, "year": year})
+    retail = retail[(retail['Category']=='VSPC Retail ') | (retail['Category']=='VSPC Retail') | (retail['Category']=='PSD Retail ') | (retail['Category']=='PSD Retail')]
+    #retail = retail[(retail['Part Code No']!='OL85109697') & (retail['Part Code No']!='OL85109697-A') &  (retail['Part Code No']!='OL85109697-AIBC')]
+    retail = retail[~ retail['Part Code No'].isin(['OL85109697','OL85109697-A','OL85109697-AIBC'])]
+    retail=retail[~ retail["Payment CodeId"].isin([1,2,3,5,7,9,10])]
+    if not part_code==None:
+        retail=retail[retail["Product Code"]==part_code]    
     retail["Invoice Date"] = pd.to_datetime(retail["Invoice Date"], format="%d-%m-%Y")
     retail["Month Year"] = retail["Invoice Date"].apply(lambda x: x.strftime('%b-%Y'))
     retail[["Month Name", 'Year']] = retail['Month Year'].str.split('-', expand=True)
@@ -70,16 +80,43 @@ async def get_retail(month, year, token: str = Depends(oauth2_scheme)):
 
 async def get_running_hrs(token: str = Depends(oauth2_scheme)):
     running_hrs = await get_db_connection("running_hours")
+    running_hrs = running_hrs[(running_hrs['Application']!='On Road -Long Haul') & (running_hrs['Application']!='On Road') & (running_hrs['Application']!='On-Road LH')]
     running_hrs.set_index("Application", inplace=True)
     return running_hrs
 
-async def get_db_connection(table_name, params=None):
+async def get_filters(token: str = Depends(oauth2_scheme)):
     try:
         connection = mysql.connector.connect(**db_config)
         if connection.is_connected():
             cursor = connection.cursor()
             try:
-                if table_name == "retail":
+                query = f'SELECT DISTINCT `Product Code` FROM retail'
+
+                cursor.execute(query)
+                rows = [list(row) for row in cursor.fetchall()]
+                util =await get_db_connection("utilization")
+                util["Monthq"] = pd.to_datetime(util["Monthq"], format="%b-%y").dt.strftime('%b-%Y')
+                util[["Month Name", 'Year']] = util['Monthq'].str.split('-', expand=True)
+                return {
+                "Month": util["Month Name"].unique().tolist(),  # Convert to list
+                "Year": util["Year"].unique().tolist(),         # Convert to list
+                "Part_Code": rows  # This comes from the SQL query
+                }
+            finally:
+                cursor.close()
+                connection.close()
+    except Error as e:
+        print(f"Error while connecting to MySQL: {e}")
+        raise HTTPException(status_code=500, detail="Database connection failed")
+
+async def get_db_connection(table_name, params=None):
+    try:
+        connection = mysql.connector.connect(**db_config)
+        
+        if connection.is_connected():
+            cursor = connection.cursor()
+            try:
+                if table_name == "retail":     
                     month, year = params["month"], params["year"]
                     query = f"SELECT * FROM {table_name} WHERE month_name = %s AND year = %s"
                     cursor.execute(query, (month, year))
