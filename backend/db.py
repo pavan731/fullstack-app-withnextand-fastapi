@@ -37,7 +37,7 @@ def filters(df, month, year):
     return df
 
 async def get_pvpm(token: str = Depends(oauth2_scheme)):
-    pvpm = await get_db_connection("PVPM")
+    pvpm = await get_db_connection("pvpm")
     pvpm.drop(columns=['On Road -Long Haul','On Road'],inplace=True)
     pvpm.fillna(0, inplace=True)
     pvpm = pvpm.map(lambda x: int(x.replace(',', '')) if isinstance(x, str) else x)
@@ -64,14 +64,13 @@ async def get_utilization(month, year, token: str = Depends(oauth2_scheme)):
     
     return util
 
-async def get_retail(month, year,part_code=None, token: str = Depends(oauth2_scheme)):
+async def get_retail(month, year, token: str = Depends(oauth2_scheme)):
     retail = await get_db_connection("retail", {"month": month, "year": year})
     retail = retail[(retail['Category']=='VSPC Retail ') | (retail['Category']=='VSPC Retail') | (retail['Category']=='PSD Retail ') | (retail['Category']=='PSD Retail')]
     #retail = retail[(retail['Part Code No']!='OL85109697') & (retail['Part Code No']!='OL85109697-A') &  (retail['Part Code No']!='OL85109697-AIBC')]
     retail = retail[~ retail['Part Code No'].isin(['OL85109697','OL85109697-A','OL85109697-AIBC'])]
     retail=retail[~ retail["Payment CodeId"].isin([1,2,3,5,7,9,10])]
-    if not part_code==None:
-        retail=retail[retail["Product Code"]==part_code]    
+      
     retail["Invoice Date"] = pd.to_datetime(retail["Invoice Date"], format="%d-%m-%Y")
     retail["Month Year"] = retail["Invoice Date"].apply(lambda x: x.strftime('%b-%Y'))
     retail[["Month Name", 'Year']] = retail['Month Year'].str.split('-', expand=True)

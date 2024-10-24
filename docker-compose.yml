@@ -1,0 +1,12 @@
+services:
+  fastapi:
+    image: my-fastapi-app:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=mysql+pymysql://root:Pavan123@172.17.0.1:3306/parts_analytics
+    networks:
+      - app-network
+networks:
+  app-network:
+    driver: bridge

@@ -185,14 +185,13 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     access_token = jwt_factory.create_token(form_data.username)
 
     session_manager = SessionManagerFactory()
-    session_manager.create_session(email=form_data.username,session_data =access_token)
+    session_manager.create_session(email=form_data.username, session_data=access_token)
     
     return {"access_token": access_token, "token_type": "bearer"}
 
 class FilterModel(BaseModel):
     month: Optional[str] = None
     year: Optional[int] = None
-    part_code: Optional[str] = None
     other_filter: Optional[str] = None
 
 # Separate endpoints for each table
@@ -258,22 +257,22 @@ async def retrieve_utilization_per_month(month: Optional[str] = Query(None), yea
     return {"utilization_per_month": dataframes_json}
 
 @app.get("/gross_sale")
-async def retrieve_gross_sale(month: Optional[str] = Query(None), year: Optional[int] = Query(None),part_code: Optional[str] = Query(None)):
-    data = await get_retail(month, year,part_code)
+async def retrieve_gross_sale(month: Optional[str] = Query(None), year: Optional[int] = Query(None)):
+    data = await get_retail(month, year)
     dataframe = Gross_sale(data)
     dataframes_json = dataframe.to_dict(orient="records")
     return {"gross_sale": dataframes_json}
 
 @app.get("/pp")
-async def retrieve_pp(month: Optional[str] = Query(None), year: Optional[int] = Query(None),part_code: Optional[str] = Query(None)):
-    retail = await get_retail(month, year,part_code)
+async def retrieve_pp(month: Optional[str] = Query(None), year: Optional[int] = Query(None)):
+    retail = await get_retail(month, year)
     pvpm = await get_pvpm()
     data = await get_utilization(month, year)
     running = await get_running_hrs()
     
     dataframe,potential_sale,sum_of_gross_sale, pp = parts_penetration(retail, pvpm, data, running)
     dataframes_json = dataframe.to_dict(orient="records")
-    print(dataframes_json,potential_sale,sum_of_gross_sale, pp)
+    
     return {
         "pp_table": dataframes_json, 
         "sum_of_gross_sale": sum_of_gross_sale, 

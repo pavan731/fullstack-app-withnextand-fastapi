@@ -4,6 +4,9 @@ def truck_vehicle_population(data,pvpm):
     Vehicle_pop=data.pivot_table(index='AGE', columns='VDB APPLIcATION', aggfunc='size', fill_value=0)
     Vehicle_pop.fillna(0,inplace=True)
     Vehicle_pop = Vehicle_pop.reindex(columns=pvpm.columns)
+    Vehicle_pop.loc['Total'] = Vehicle_pop.sum()
+    Vehicle_pop['Total'] = Vehicle_pop.sum(axis=1)
+    Vehicle_pop.loc['Total','Total'] = Vehicle_pop['Total'].sum()
     Vehicle_pop=Vehicle_pop.astype(int)
     return Vehicle_pop
 
@@ -35,11 +38,12 @@ def parts_penetration(retail,pvpm,data,running):
     c=data.groupby(['VDB APPLIcATION',"Month"])["Utilization %"].count().reset_index()
     c=pd.pivot_table(c,values="Utilization %",index='VDB APPLIcATION',columns="Month")
     c.fillna(0,inplace=True)
+    
     multi_util_count=Utilzation_per_month.mul(c)
 
 
     df=pd.DataFrame(columns=['Application','Vehicle_Population','Running_hrs','Pot_Utilisation/Day','Utilisation%','ACT_Pot_Utilisation/Day','Ideal_Potential','Utilisation_Factor','Actual pototential calc'])
-    df['Application'] = ['Mining OB/Mineral','Coal Transport','Road Construction','Irrigation','Quarry','On-Road LH','On Road']
+    df['Application'] = ['Mining OB/Mineral','Coal Transport','Road Construction','Irrigation','Quarry']
     df.set_index("Application",inplace=True)
     df.fillna(0,inplace=True)
     
